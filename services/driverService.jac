@@ -1,5 +1,8 @@
 import from jaclang.byllm.lib { Model }
 
+import from .accountService { DriverProfile }
+import from .passengerService { PassengerRideRequest }
+
 glob llm: Model = Model(model_name="gemini/gemini-3.8-flash");
 
 node Zone { has name: str = "", x: float = 0.0, y: float = 0.0, region: str = "", demand_morning: float = 0.5, demand_midday: float = 0.5, demand_evening: float = 0.5; }
@@ -16,6 +19,7 @@ obj SetupView { has goals_text: str, region: str, currency: str, distance_unit: 
 obj DecisionView { has offer_id: str, decision: str, amount: float, minutes: float, destination: str; }
 obj WorkspaceView { has setup: SetupView, zones: list[ZoneView], offers: list[OfferView], decisions: list[DecisionView], tracked_zone: str; }
 obj ShiftComparisonView { has naive_profit: float, naive_minutes: float, naive_home_eta: float, naive_location: str, naive_taken: list[str], agent_profit: float, agent_minutes: float, agent_home_eta: float, agent_location: str, agent_taken: list[str], deadline_minutes: float; }
+obj ScenarioView { has recommendation: str, reason: str, home_eta: float, trip_net: float, changed: bool, rain_multiplier: float; }
 
 sem GoalDraft.start_zone = "A simulated zone in Sri Lanka.";
 sem GoalDraft.home_zone = "The driver's simulated home zone.";
@@ -123,6 +127,45 @@ def:pub getOfferExplanation(offer_text: str, evaluation_text: str) -> str by llm
 sem getOfferExplanation = "Briefly explain simulated trip economics and deterministic recommendation. Never claim live driver tracking or traffic prediction.";
 sem getOfferExplanation.offer_text = "Simulated offer details.";
 sem getOfferExplanation.evaluation_text = "Deterministic evaluation.";
+
+def:protect evaluateOfferScenario(offer_id: str, weather: str, time_band: str) -> ScenarioView {
+    _ensure_workspace();
+    if weather != "clear" and weather != "rain" { raise ValueError("Choose Clear or Rain."); }
+    if time_band != "morning" and time_band != "midday" and time_band != "evening" { raise ValueError("Choose a valid time band."); }
+    setup = [root -->][?:DriverSetup][0];
+    zones = [root -->][?:Zone];
+    for offer in [root -->][?:SimOffer] {
+        if jid(offer) == offer_id {
+            pickup_region = ""; drop_region = "";
+            for z in zones { if z.name == offer.pickup { pickup_region = z.region; } if z.name == offer.dropoff { drop_region = z.region; } }
+            if pickup_region != setup.region or drop_region != setup.region { raise ValueError("Offer is outside your selected region."); }
+            metrics = _offer_metrics({"fare": offer.fare + offer.surge, "distance_km": offer.distance_km, "duration_min": offer.duration_min, "pickup_km": offer.pickup_km, "dropoff": offer.dropoff}, setup, zones);
+            base_eta = metrics["traffic_eta"] as float;
+            band_factor = 1.0;
+            if time_band == "morning" { band_factor = 1.18; }
+            elif time_band == "evening" { band_factor = 1.28; }
+            weather_factor = 1.25 if weather == "rain" else 1.0;
+            adjusted_eta = base_eta * band_factor * weather_factor;
+            base_home = metrics["home_eta"] as float;
+            adjusted_home = base_home * band_factor * weather_factor;
+            cost = metrics["cost_km"] as float;
+            adjusted_net = (offer.fare + offer.surge) - (offer.distance_km + offer.pickup_km) * cost * weather_factor;
+            deadline_ok = adjusted_home <= _minutes_to_deadline(setup.deadline, setup.shift_hours);
+            recommendation = "ACCEPT";
+            reason = "Simulated net is positive and the home deadline remains feasible.";
+            if not deadline_ok { recommendation = "DECLINE"; reason = "The simulated arrival would miss your configured home deadline."; }
+            elif adjusted_net < (metrics["empty_return_cost"] as float) * 0.35 { recommendation = "WAIT"; reason = "Consider repositioning to a higher simulated demand zone while waiting."; }
+            return ScenarioView(recommendation=recommendation, reason=reason, home_eta=adjusted_home, trip_net=adjusted_net, changed=recommendation != (metrics["recommendation"] as str), rain_multiplier=weather_factor);
+        }
+    }
+    raise ValueError("Offer not found.");
+}
+
+def:protect getPassengerRequests() -> list[PassengerRideRequest] {
+    profiles = [root -->][?:DriverProfile];
+    if len(profiles) == 0 or profiles[0].role != "driver" { return []; }
+    return [r for r in [root.shared -->][?:PassengerRideRequest] if r.status == "requested"];
+}
 
 def:protect getDriverWorkspace() -> WorkspaceView {
     _ensure_workspace();

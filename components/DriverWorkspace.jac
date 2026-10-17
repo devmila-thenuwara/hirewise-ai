@@ -1,4 +1,4 @@
-sv import from ..services.driverService { WorkspaceView, OfferView, parseGoals, getDriverWorkspace, saveDriverSetup, decideOffer, getShiftComparison, ShiftComparisonView }
+sv import from ..services.driverService { WorkspaceView, OfferView, parseGoals, getDriverWorkspace, saveDriverSetup, decideOffer, getShiftComparison, ShiftComparisonView, evaluateOfferScenario, ScenarioView, getPassengerRequests, PassengerRideRequest }
 import from .ui.button { Button }
 import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent }
 import from .ui.input { Input }
@@ -25,12 +25,19 @@ def:pub DriverWorkspace() -> JsxElement {
     has fuel_price: str = "350";
     has map_message: str = "";
     has compare: ShiftComparisonView | None = None;
+    has weather: str = "clear";
+    has time_band: str = "midday";
+    has scenario: ScenarioView | None = None;
+    has passenger_requests: list[PassengerRideRequest] = [];
+    has account_role: str = "driver";
     has map_ref: Ref[HTMLDivElement] = Ref();
     nav = useNavigate();
 
     async can with entry {
         try {
+            account_role = "driver";
             workspace = await getDriverWorkspace();
+            passenger_requests = await getPassengerRequests();
             goals_text = workspace.setup.goals_text;
             region = workspace.setup.region;
             start_zone = workspace.setup.start_zone;
@@ -57,6 +64,8 @@ def:pub DriverWorkspace() -> JsxElement {
     def on_vehicle(e: ChangeEvent) { vehicle_type = e.target.value; }
     def on_efficiency(e: ChangeEvent) { fuel_efficiency = e.target.value; }
     def on_fuel_price(e: ChangeEvent) { fuel_price = e.target.value; }
+    def on_weather(e: ChangeEvent) { weather = e.target.value; scenario = None; }
+    def on_time_band(e: ChangeEvent) { time_band = e.target.value; scenario = None; }
     def show_map_message(message: str) { map_message = message; }
 
     async def refresh_workspace -> None {
@@ -106,6 +115,18 @@ def:pub DriverWorkspace() -> JsxElement {
         try { compare = await getShiftComparison(); }
         except Exception { error_message = "Full-shift comparison is unavailable right now."; }
         busy = False;
+    }
+
+    async def evaluate_scenario(offer_id: str) -> None {
+        busy = True; error_message = "";
+        try { scenario = await evaluateOfferScenario(offer_id, weather, time_band); }
+        except Exception { error_message = "Scenario evaluation is unavailable for this offer."; }
+        busy = False;
+    }
+
+    async def refresh_requests -> None {
+        try { passenger_requests = await getPassengerRequests(); }
+        except Exception { passenger_requests = []; }
     }
 
     async def sign_out -> None {
@@ -162,7 +183,9 @@ def:pub DriverWorkspace() -> JsxElement {
                     <div className="space-y-2 rounded-xl border p-4"><p className="text-sm font-semibold">HireWise recommendation: {current_offer.evaluation.recommendation}</p><p className="text-sm leading-relaxed text-muted-foreground">{current_offer.evaluation.reason}</p><div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1 text-xs text-muted-foreground"><span>Estimated net</span><span className="text-right">LKR {round(current_offer.evaluation.trip_net)}</span><span>Return demand</span><span className="text-right">{round(current_offer.evaluation.demand * 100.0)}%</span><span>Est. time home</span><span className="text-right">{round(current_offer.evaluation.home_eta)} min</span></div></div>
                     <div className="grid grid-cols-2 gap-2"><Button disabled={busy} onClick={lambda { decide(current_offer.id, "accept"); }}>Accept offer</Button><Button variant="outline" disabled={busy} onClick={lambda { decide(current_offer.id, "decline"); }}>Decline offer</Button></div><Button variant="ghost" className="w-full" disabled={busy} onClick={lambda { decide(current_offer.id, "decline"); }}>Next offer</Button></div>}
                     {current_offer is None and <div className="rounded-xl border border-dashed px-4 py-8 text-center"><p className="font-medium">No available offers</p><p className="mt-1 text-sm text-muted-foreground">All offers were reviewed, or this region’s data is paused.</p></div>}
+                    {current_offer is not None and <div className="space-y-3 rounded-xl border bg-background p-4"><div><p className="font-semibold">What-if scenario</p><p className="text-xs text-muted-foreground">Simulated assumption: Rain multiplies traffic by 1.25×; not live weather or traffic.</p></div><div className="grid grid-cols-2 gap-2"><label className="space-y-1 text-xs font-medium">Weather<select value={weather} onChange={on_weather} className="h-10 w-full rounded-lg border bg-background px-2"><option value="clear">Clear</option><option value="rain">Rain</option></select></label><label className="space-y-1 text-xs font-medium">Time band<select value={time_band} onChange={on_time_band} className="h-10 w-full rounded-lg border bg-background px-2"><option value="morning">Morning peak</option><option value="midday">Midday</option><option value="evening">Evening peak</option></select></label></div><Button variant="outline" disabled={busy} onClick={lambda { evaluate_scenario(current_offer.id); }}>Re-evaluate current offer</Button>{scenario is not None and <div className="rounded-lg bg-muted/50 p-3 text-sm"><p className="font-medium">Scenario: {scenario.recommendation}{" (recommendation changed)" if scenario.changed else " (unchanged)"}</p><p className="mt-1 text-muted-foreground">{scenario.reason}</p><p className="mt-1 text-xs text-muted-foreground">Estimated home ETA {round(scenario.home_eta)} min · simulated net LKR {round(scenario.trip_net)}</p></div>}</div>}
                     <div className="border-t pt-4"><Button variant="outline" className="w-full" disabled={busy} onClick={compare_shift}>Simulate full shift</Button>{compare is not None and <div className="mt-3 grid grid-cols-2 gap-3"><div className="rounded-xl border bg-muted/40 p-3"><p className="text-xs font-semibold">Highest fare first</p><p className="mt-2 text-sm">Net LKR {round(compare.naive_profit)}</p><p className="text-xs text-muted-foreground">Home ETA {round(compare.naive_home_eta)} min</p></div><div className="rounded-xl border bg-primary/5 p-3"><p className="text-xs font-semibold">HireWise agent</p><p className="mt-2 text-sm">Net LKR {round(compare.agent_profit)}</p><p className="text-xs text-muted-foreground">Home ETA {round(compare.agent_home_eta)} min</p></div></div>}</div>
+                    <div className="border-t pt-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">Passenger requests</p><Button variant="ghost" size="sm" onClick={refresh_requests}>Refresh</Button></div>{len(passenger_requests) == 0 and <p className="mt-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">No passenger requests yet.</p>}{for request in passenger_requests { <div key={request.pickup + "-" + request.dropoff + "-" + request.time_band} className="mt-2 rounded-lg border bg-muted/30 p-3"><p className="text-sm font-medium">{request.pickup} to {request.dropoff}</p><p className="text-xs text-muted-foreground">{request.time_band} · {request.distance_km} km · LKR {round(request.fare_lkr)} · {round(request.eta_min)} min estimated · simulated</p></div>}}</div>
                 </CardContent></Card>
             </div>
         </div>

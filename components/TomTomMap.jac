@@ -24,7 +24,7 @@ def:pub TomTomMap(host: any, center: list[float], zoom: float, onFallback: Calla
                 if fallbackCallback { fallbackCallback.call(None, "TomTom map could not load; the simulated zone list remains available."); }
             }
         } elif not globalThis.__TOMTOM_API_KEY__ {
-            if fallbackCallback { fallbackCallback.call(None, "Add TOMTOM_API_KEY in Settings to enable the map. Device location is available from the map control."); }
+            if fallbackCallback { fallbackCallback.call(None, "Add MAPS_API_KEYS in Settings to enable the map. Device location is available from the map control."); }
         }
     }
 
