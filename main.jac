@@ -1,4 +1,4 @@
-import from services.driverService { parseGoals, getDriverWorkspace, saveDriverSetup, decideOffer, evaluateOffer, getOfferExplanation, getShiftComparison }
+import from services.driverService { parseGoals, getDriverWorkspace, saveDriverSetup, decideOffer, getOfferExplanation, getShiftComparison }
 import ".styles.global.css";
 import from "@jac/runtime" { Router, Routes, Route }
 import from .components.DriverWorkspace { DriverWorkspace }

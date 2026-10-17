@@ -12,11 +12,11 @@ api_key = "${GEMINI_API_KEY:-}"
 
 
 [jac-shadcn]
-style = "nova"
+style = "lyra"
 baseColor = "zinc"
-theme = "teal"
-font = "geist"
-radius = "medium"
+theme = "indigo"
+font = "inter"
+radius = "default"
 menuAccent = "subtle"
 menuColor = "default"
 [dependencies]

@@ -40,7 +40,7 @@ def:pub FieldLegend(props: any) -> JsxElement {
             data-slot="field-legend"
             data-variant={variant}
             className={cn(
-                "mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base",
+                "mb-2.5 font-medium data-[variant=label]:text-xs data-[variant=legend]:text-sm mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base",
                 props["className"]
             )}
         />;
@@ -94,7 +94,7 @@ def:pub FieldLabel(props: any) -> JsxElement {
             {**props}
             data-slot="field-label"
             className={cn(
-                "has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-3 *:data-[slot=field]:p-2.5 has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-2 group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border *:data-[slot=field]:p-2.5 group/field-label peer/field-label flex w-fit leading-snug",
+                "has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-none has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50 has-[>[data-slot=field]]:has-[:focus-visible]:border-ring has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50 has-[>[data-slot=field]]:has-[:focus-visible]:ring-1 *:data-[slot=field]:p-2 has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-2 group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border *:data-[slot=field]:p-2.5 group/field-label peer/field-label flex w-fit leading-snug",
                 "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
                 props["className"]
             )}
@@ -108,7 +108,7 @@ def:pub FieldTitle(props: any) -> JsxElement {
             {**attrs}
             data-slot="field-label"
             className={cn(
-                "gap-2 leading-snug text-sm font-medium group-data-[disabled=true]/field:opacity-50 gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50 flex w-fit items-center leading-snug",
+                "gap-2 text-xs/relaxed group-data-[disabled=true]/field:opacity-50 gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50 flex w-fit items-center leading-snug",
                 props["className"]
             )}
         />;
@@ -121,7 +121,7 @@ def:pub FieldDescription(props: any) -> JsxElement {
             {**attrs}
             data-slot="field-description"
             className={cn(
-                "text-muted-foreground text-left text-sm [[data-variant=legend]+&]:-mt-1.5 text-muted-foreground text-left text-sm [[data-variant=legend]+&]:-mt-1.5 leading-normal font-normal group-has-data-horizontal/field:text-balance",
+                "text-muted-foreground text-left text-xs/relaxed [[data-variant=legend]+&]:-mt-1.5 text-muted-foreground text-left text-sm [[data-variant=legend]+&]:-mt-1.5 leading-normal font-normal group-has-data-horizontal/field:text-balance",
                 "last:mt-0 nth-last-2:-mt-1",
                 "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
                 props["className"]
@@ -137,7 +137,7 @@ def:pub FieldSeparator(props: any) -> JsxElement {
             data-slot="field-separator"
             data-content={Boolean(props["children"])}
             className={cn(
-                "-my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2 -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2 relative",
+                "-my-2 h-5 text-xs group-data-[variant=outline]/field-group:-mb-2 -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2 relative",
                 props["className"]
             )}
         >
@@ -199,7 +199,7 @@ def:pub FieldError(props: any) -> any {
             role="alert"
             data-slot="field-error"
             className={cn(
-                "text-destructive text-sm text-destructive text-sm font-normal",
+                "text-destructive text-xs text-destructive text-sm font-normal",
                 props["className"]
             )}
         >
