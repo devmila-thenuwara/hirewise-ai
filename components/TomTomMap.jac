@@ -1,62 +1,40 @@
 import from "@tomtom-international/web-sdk-maps" { default as tt }
 import "@tomtom-international/web-sdk-maps/dist/maps.css";
 
-# TomTom Maps SDK JavaScript: map, default live traffic-flow layer, and simulated position marker.
-def:pub TomTomMap(host: any, mapCenter: list[float], zoom: float, trafficEnabled: bool, onFallback: Callable[[str], None]) -> JsxElement {
-    glob mapInstance: any = None;
-    glob markerInstance: any = None;
-    glob mapHost: any = None;
-    glob mapCenterValue: list[float] = [];
-    glob zoomValue: float = 0.0;
-    glob trafficValue: bool = False;
-    glob fallbackCallback: any = None;
+glob mapInstance: any = None;
+glob mapHost: any = None;
+glob fallbackCallback: any = None;
+glob centerValue: list[float] = [];
+glob zoomValue: float = 0.0;
 
-    can with (host, mapCenter, zoom, trafficEnabled, onFallback) entry {
+# TomTom map with optional device location control. Zone and offer data remain simulated.
+def:pub TomTomMap(host: any, center: list[float], zoom: float, onFallback: Callable[[str], None]) -> JsxElement {
+    can with (host, center, zoom, onFallback) entry {
         mapHost = host.current;
-        mapCenterValue = mapCenter;
+        centerValue = center;
         zoomValue = zoom;
-        trafficValue = trafficEnabled;
         fallbackCallback = onFallback;
         if mapHost and globalThis.__TOMTOM_API_KEY__ {
             try {
-                mapInstance = tt.map({
-                    "key": globalThis.__TOMTOM_API_KEY__,
-                    "container": mapHost,
-                    "center": mapCenterValue,
-                    "zoom": zoomValue,
-                    "style": {"map": "basic_main", "trafficIncidents": "incidents_day", "trafficFlow": "flow_relative", "poi": "poi_main"},
-                    "stylesVisibility": {"trafficFlow": trafficValue, "trafficIncidents": trafficValue},
-                    "scrollZoom": False,
-                    "interactive": True
-                });
-                markerInstance = new(tt.Marker, {"color": "#f97316", "width": "18px", "height": "18px"});
-                markerInstance.setLngLat(mapCenterValue).addTo(mapInstance);
-                mapInstance.on("error", lambda (errorEvent: any) {
-                    if fallbackCallback { fallbackCallback.call(None, "TomTom map failed; showing the simulated zone diagram."); }
-                });
+                mapInstance = tt.map({"key": globalThis.__TOMTOM_API_KEY__, "container": mapHost, "center": centerValue, "zoom": zoomValue, "style": {"map": "basic_main", "trafficFlow": "flow_relative", "trafficIncidents": "incidents_day"}, "interactive": True});
+                mapInstance.addControl(new(tt.NavigationControl), "top-right");
+                mapInstance.addControl(new(tt.GeolocateControl, {"positionOptions": {"enableHighAccuracy": True}, "trackUserLocation": True, "showUserLocation": True}), "top-right");
+                mapInstance.on("error", lambda (event: any) { if fallbackCallback { fallbackCallback.call(None, "TomTom map is unavailable; the simulated zone list remains available."); } });
             } except Exception {
-                if fallbackCallback { fallbackCallback.call(None, "TomTom map could not load; showing the simulated zone diagram."); }
+                if fallbackCallback { fallbackCallback.call(None, "TomTom map could not load; the simulated zone list remains available."); }
             }
         } elif not globalThis.__TOMTOM_API_KEY__ {
-            if fallbackCallback { fallbackCallback.call(None, "TOMTOM_API_KEY is missing; showing the simulated zone diagram."); }
+            if fallbackCallback { fallbackCallback.call(None, "Add TOMTOM_API_KEY in Settings to enable the map. Device location is available from the map control."); }
         }
     }
 
-    can with (mapCenter, zoom, trafficEnabled) entry {
-        if mapInstance {
-            mapInstance.setCenter(mapCenter);
-            mapInstance.setZoom(zoom);
-            if trafficEnabled { mapInstance.showTrafficFlow(); mapInstance.showTrafficIncidents(); }
-            else { mapInstance.hideTrafficFlow(); mapInstance.hideTrafficIncidents(); }
-            if markerInstance { markerInstance.setLngLat(mapCenter); }
-        }
+    can with (center, zoom) entry {
+        if mapInstance { mapInstance.setCenter(center); mapInstance.setZoom(zoom); }
     }
 
     can with exit {
-        if markerInstance { markerInstance.remove(); markerInstance = None; }
         if mapInstance { mapInstance.remove(); mapInstance = None; }
         mapHost = None;
     }
-
-    return <div ref={host} className="h-full min-h-[320px] w-full overflow-hidden rounded-xl" aria-label="TomTom map showing live traffic and simulated driver position" />;
+    return <div ref={host} className="h-full min-h-[280px] w-full overflow-hidden rounded-xl" aria-label="TomTom map with opt-in device location control" />;
 }
