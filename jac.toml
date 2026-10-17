@@ -1,27 +1,27 @@
 [project]
-name = "empty"
-version = "0.0.1"
-description = "Empty Jac project - start from scratch"
+name = "hirewise"
+version = "0.1.0"
+description = "Simulated AI driver decision workspace for Sri Lanka"
 entry-point = "main.jac"
 kind = "web-app"
 
 [byllm]
 [byllm.model]
-default_model = "${LLM_MODEL:-gpt-4o-mini}"
-api_key = "${OPENAI_API_KEY:-}"
+default_model = "gemini/gemini-3.8-flash"
+api_key = "${GEMINI_API_KEY:-}"
 
 
 [jac-shadcn]
 style = "nova"
-baseColor = "neutral"
-theme = "amber"
-font = "inter"
-radius = "default"
+baseColor = "zinc"
+theme = "teal"
+font = "geist"
+radius = "medium"
 menuAccent = "subtle"
 menuColor = "default"
-
 [dependencies]
 [dependencies.npm]
+"@fontsource-variable/geist" = "*"
 react = "^18.2.0"
 react-dom = "^18.2.0"
 react-router-dom = "^6.22.0"

@@ -1,5 +1,8 @@
-import from .frontend { app as ClientApp }
+import from services.driverService { parseGoals, getDriverWorkspace, saveDriverSetup, decideOffer, evaluateOffer, getOfferExplanation, getShiftComparison }
+import ".styles.global.css";
+import from "@jac/runtime" { Router, Routes, Route }
+import from .components.DriverWorkspace { DriverWorkspace }
 
 def:pub app() -> JsxElement {
-    return <ClientApp />;
+    return <Router><Routes><Route path="/" element={<DriverWorkspace />} /></Routes></Router>;
 }

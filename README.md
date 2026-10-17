@@ -1,38 +1,20 @@
-# Empty
+# HireWise
 
-A blank canvas — the minimal jac-shadcn starter the other templates are built on.
+HireWise is a Sri Lanka driver decision workspace built in Jac. All zone, road, demand, fare, traffic, time and energy-price examples are simulated. The app does not connect to live maps, traffic services, or ride providers.
 
-One client page, the violet theme wired up, and nothing else in the way. Start
-here when none of the other templates fit, and describe what you want to build.
+## Jac and Jaseci features
 
-## What you get
+- **Nodes and graph:** `Zone`, `RoadLink`, `DriverSetup`, `SimOffer`, and `DecisionRecord` are Jac graph nodes attached to the request root. `SeedWorkspace` initializes the illustrative Sri Lanka dataset.
+- **Walker:** `SeedWorkspace` is a graph walker that seeds zones, road links, and sample offers once.
+- **by llm:** `parseGoals` structures driver goal text and `getOfferExplanation` phrases deterministic recommendation results. The model is `gemini/gemini-3.8-flash`; supply the key as `GEMINI_API_KEY` in the JacHammer Settings environment panel. No API key is embedded in source.
+- **Deterministic calculations:** Energy cost per kilometre, trip net, return-ride potential, empty-return expense, deadline feasibility, and shift simulation are computed by Jac code, not by the LLM.
+- **Client frontend:** A Jac component provides editable goals, petrol/EV calibration, profit/shortest-ETA preference, an SVG zone graph, offer decisions, tracker, and full-shift comparison.
+- **Authentication:** Not included in Phase 1.
 
-- `main.jac` — a `cl { }` block with a single `def:pub app()` page (a centered
-  card). This is the whole app.
-- `components/ui/` — the two jac-shadcn primitives (`Button`, `Card`) the page
-  uses. Add more with `jac add --shadcn <name>`.
-- `styles/global.css` — semantic design tokens and the theme, already wired up.
-- `lib/utils.jac` — `cn()` for merging class names.
+## Launch
 
-## Run it
+The JacHammer preview runs the project. Add `GEMINI_API_KEY` in JacHammer Settings and restart the preview to enable Gemini goal parsing and explanations. Manual goal editing and deterministic offer decisions remain usable without the key.
 
-```bash
-jac install
-jac start --dev
-```
+## Model assumptions
 
-Open <http://localhost:8000>.
-
-## Where to go next
-
-- **Add a page / routing** — create a `pages/` directory; files become routes
-  by convention. See `jac guide jac-cl-routing`.
-- **Add a backend** — create `services/foo.sv.jac` with `def:pub` functions;
-  each becomes a `POST /function/<name>` REST endpoint automatically, and data
-  hung off `root` persists with no database to set up (Jac stores the graph for
-  you — SQLite in `.jac/data/` by default, MongoDB via `MONGODB_URI`). See
-  `jac guide jac-sv-endpoints` and `jac guide jac-sv-persistence`.
-- **Add auth** — see `jac guide jac-sv-auth` and `jac guide jac-cl-auth`.
-
-`AGENTS.md` lists the reference guides bundled with the compiler; read them
-before writing Jac — the syntax is easy to confuse with Python or JSX.
+Values are illustrative simulated assumptions, not actual fuel/electricity prices, fares, road conditions, demand probabilities, or travel-time promises. The driver makes all final accept/decline choices. The naive comparison selects highest fare first and skips only when its simulated return-to-home estimate misses the deadline. HireWise never advises declining solely because of traffic or cancelling an accepted trip.
