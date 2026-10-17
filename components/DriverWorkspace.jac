@@ -62,10 +62,18 @@ def:pub DriverWorkspace() -> JsxElement {
 
     def handle_goals(e: ChangeEvent) { goals_text = e.target.value; }
     def handle_region(e: ChangeEvent) {
-        region = e.target.value;
-        if region == "United Kingdom" { start_zone = "London"; home_zone = "London"; selected_zone = "London"; target_profit = "150"; fuel_price = "1.55"; electricity_price = "0.28"; }
-        elif region == "United States" { start_zone = "New York"; home_zone = "New York"; selected_zone = "New York"; target_profit = "150"; fuel_price = "3.60"; electricity_price = "0.16"; }
-        else { start_zone = "Moratuwa"; home_zone = "Moratuwa"; selected_zone = "Moratuwa"; target_profit = "4500"; fuel_price = "350"; electricity_price = "60"; }
+        next_region = e.target.value;
+        region = next_region;
+        if next_region == "United Kingdom" {
+            start_zone = "London"; home_zone = "London"; selected_zone = "London";
+            target_profit = "150"; fuel_price = "1.55"; electricity_price = "0.28";
+        } elif next_region == "United States" {
+            start_zone = "New York"; home_zone = "New York"; selected_zone = "New York";
+            target_profit = "150"; fuel_price = "3.60"; electricity_price = "0.16";
+        } else {
+            start_zone = "Moratuwa"; home_zone = "Moratuwa"; selected_zone = "Moratuwa";
+            target_profit = "4500"; fuel_price = "350"; electricity_price = "60";
+        }
         selected_index = 0;
         message = "Region changed. Save to apply simulated regional settings.";
     }
@@ -101,11 +109,13 @@ def:pub DriverWorkspace() -> JsxElement {
     }
 
     async def handle_save -> None {
+        message = "Saving simulated driver setup...";
+        error_message = "";
         try {
             result = await saveDriverSetup(region, goals_text, start_zone, home_zone, float(shift_hours), float(target_profit), deadline, preference, vehicle_type, float(fuel_efficiency), float(fuel_price), float(ev_efficiency), float(electricity_price));
-            if result["ok"] as bool { message = "Driver setup saved."; error_message = ""; await reload_workspace(); }
-            else { error_message = result["error"] as str; }
-        } except ValueError { error_message = "Enter valid numeric values."; }
+            if result["ok"] as bool { message = "Driver setup saved for " + region + "."; await reload_workspace(); }
+            else { error_message = result["error"] as str; message = ""; }
+        } except Exception { error_message = "Could not save this regional setup. Check the selected region and numeric values."; message = ""; }
     }
 
     async def handle_decision(choice: str) -> None {
@@ -162,8 +172,10 @@ def:pub DriverWorkspace() -> JsxElement {
 
     if loading { return <div className="min-h-svh bg-muted/40 p-6"><div className="mx-auto w-full max-w-7xl animate-pulse rounded-2xl border bg-card p-8"><div className="h-8 w-56 rounded bg-muted"/><div className="mt-6 h-64 rounded-xl bg-muted"/></div></div>; }
 
-    zones_data: list[ZoneView] = state.zones if state is not None else [];
-    offers_data: list[OfferView] = state.offers if state is not None else [];
+    all_zones: list[ZoneView] = state.zones if state is not None else [];
+    zones_data: list[ZoneView] = [z for z in all_zones if z.region == region];
+    all_offers: list[OfferView] = state.offers if state is not None else [];
+    offers_data: list[OfferView] = [o for o in all_offers if o.region == region];
     current_offer: OfferView | None = offers_data[selected_index] if len(offers_data) > 0 else None;
     current_eval: EvaluationView | None = current_offer.evaluation if current_offer is not None else None;
     route_origin = current_offer.pickup if current_offer is not None else start_zone;
@@ -219,7 +231,7 @@ def:pub DriverWorkspace() -> JsxElement {
                         <label className="flex flex-col gap-1.5 text-sm font-medium">Vehicle type<select value={vehicle_type} onChange={handle_vehicle} className="h-9 rounded-lg border border-input bg-background px-3 text-sm"><option value="petrol">Petrol</option><option value="ev">Electric vehicle</option></select></label>
                         {vehicle_type == "petrol" and <div className="grid grid-cols-2 gap-3"><label className="flex flex-col gap-1.5 text-sm font-medium">Efficiency ({unit}/L)<Input type="number" min="0.1" value={fuel_efficiency} onChange={handle_fuel_efficiency}/></label><label className="flex flex-col gap-1.5 text-sm font-medium">Fuel ({currency}/L)<Input type="number" min="0" value={fuel_price} onChange={handle_fuel_price}/></label></div>}
                         {vehicle_type == "ev" and <div className="grid grid-cols-2 gap-3"><label className="flex flex-col gap-1.5 text-sm font-medium">Efficiency ({unit}/kWh)<Input type="number" min="0.1" value={ev_efficiency} onChange={handle_ev_efficiency}/></label><label className="flex flex-col gap-1.5 text-sm font-medium">Electricity ({currency}/kWh)<Input type="number" min="0" value={electricity_price} onChange={handle_electricity_price}/></label></div>}
-                        <div className="rounded-lg bg-muted/60 p-3"><p className="text-xs text-muted-foreground">Energy cost per {unit}</p><p className="text-xl font-semibold tabular-nums">{currency} {round(cost_km, 2)}</p></div><Button onClick={handle_save}>Save driver setup</Button>
+                        <div className="rounded-lg bg-muted/60 p-3"><p className="text-xs text-muted-foreground">Energy cost per {unit}</p><p className="text-xl font-semibold tabular-nums">{currency} {round(cost_km, 2)}</p></div><button type="button" onClick={handle_save} className="inline-flex h-9 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">Save driver setup</button>
                     </CardContent></Card>
                 </div>
                 <div className="flex min-w-0 flex-col gap-5">

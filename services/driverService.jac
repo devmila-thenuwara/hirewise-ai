@@ -11,7 +11,7 @@ node DecisionRecord { has offer_id: str = "", decision: str = "", amount: float 
 obj GoalDraft { has start_zone: str, home_zone: str, shift_hours: float, target_profit: float, deadline: str; }
 obj ZoneView { has name: str, x: float, y: float, region: str, demand_morning: float, demand_midday: float, demand_evening: float; }
 obj EvaluationView { has trip_net: float, return_value: float, empty_return_cost: float, home_eta: float, deadline_feasible: bool, recommendation: str, reason: str, cost_km: float, trip_cost: float, demand: float, traffic_eta: float; }
-obj OfferView { has id: str, pickup: str, dropoff: str, fare: float, distance_km: float, duration_min: float, pickup_km: float, surge: float, status: str, evaluation: EvaluationView; }
+obj OfferView { has id: str, region: str, pickup: str, dropoff: str, fare: float, distance_km: float, duration_min: float, pickup_km: float, surge: float, status: str, evaluation: EvaluationView; }
 obj SetupView { has goals_text: str, region: str, currency: str, distance_unit: str, time_zone: str, start_zone: str, home_zone: str, shift_hours: float, target_profit: float, deadline: str, preference: str, vehicle_type: str, fuel_efficiency: float, fuel_price: float, ev_efficiency: float, electricity_price: float; }
 obj DecisionView { has offer_id: str, decision: str, amount: float, minutes: float, destination: str; }
 obj WorkspaceView { has setup: SetupView, zones: list[ZoneView], offers: list[OfferView], decisions: list[DecisionView], tracked_zone: str; }
@@ -94,10 +94,13 @@ def _minutes_to_deadline(deadline: str, shift_hours: float) -> float {
 }
 def _offer_metrics(offer: dict, setup: DriverSetup, zones: list[Zone]) -> dict {
     cost = _vehicle_cost(setup);
-    distance = offer["distance_km"] as float;
+    distance_raw = offer["distance_km"] as float;
+    pickup_raw = offer["pickup_km"] as float;
+    distance = distance_raw * 0.621371 if setup.distance_unit == "miles" else distance_raw;
+    pickup_distance = pickup_raw * 0.621371 if setup.distance_unit == "miles" else pickup_raw;
     fare = offer["fare"] as float;
     duration = (offer["duration_min"] as float) * 1.25;
-    trip_cost = (distance + (offer["pickup_km"] as float)) * cost;
+    trip_cost = (distance + pickup_distance) * cost;
     net = fare - trip_cost;
     demand = _zone_demand(zones, offer["dropoff"] as str);
     empty_cost = distance * 0.75 * cost;
@@ -121,11 +124,11 @@ sem getOfferExplanation = "Briefly explain simulated trip economics and determin
 sem getOfferExplanation.offer_text = "Simulated offer details.";
 sem getOfferExplanation.evaluation_text = "Deterministic evaluation.";
 
-def:pub getDriverWorkspace() -> WorkspaceView {
+def:protect getDriverWorkspace() -> WorkspaceView {
     _ensure_workspace();
     setup = [root -->][?:DriverSetup][0];
     zones_all = [root -->][?:Zone];
-    region_zones: list[Zone] = [z for z in zones_all if z.region == setup.region];
+    region_zones: list[Zone] = zones_all;
     decisions = [root -->][?:DecisionRecord];
     tracked = setup.start_zone;
     for d in decisions { if d.decision == "accept" { tracked = d.destination; } }
@@ -136,33 +139,37 @@ def:pub getDriverWorkspace() -> WorkspaceView {
         pickup_region = "Sri Lanka";
         drop_region = "Sri Lanka";
         for z in zones_all { if z.name == o.pickup { pickup_region = z.region; } if z.name == o.dropoff { drop_region = z.region; } }
-        if pickup_region == setup.region and drop_region == setup.region {
-            raw = {"id": jid(o), "pickup": o.pickup, "dropoff": o.dropoff, "fare": o.fare + o.surge, "distance_km": o.distance_km, "duration_min": o.duration_min, "pickup_km": o.pickup_km};
-            metrics = _offer_metrics(raw, setup, zones_all);
-            evaluation = EvaluationView(trip_net=metrics["trip_net"] as float, return_value=metrics["return_value"] as float, empty_return_cost=metrics["empty_return_cost"] as float, home_eta=metrics["home_eta"] as float, deadline_feasible=metrics["deadline_feasible"] as bool, recommendation=metrics["recommendation"] as str, reason=metrics["reason"] as str, cost_km=metrics["cost_km"] as float, trip_cost=metrics["trip_cost"] as float, demand=metrics["demand"] as float, traffic_eta=metrics["traffic_eta"] as float);
-            offer_views.append(OfferView(id=jid(o), pickup=o.pickup, dropoff=o.dropoff, fare=o.fare, distance_km=o.distance_km, duration_min=o.duration_min, pickup_km=o.pickup_km, surge=o.surge, status=o.status, evaluation=evaluation));
-        }
+        raw = {"id": jid(o), "pickup": o.pickup, "dropoff": o.dropoff, "fare": o.fare + o.surge, "distance_km": o.distance_km, "duration_min": o.duration_min, "pickup_km": o.pickup_km};
+        metrics = _offer_metrics(raw, setup, zones_all);
+        evaluation = EvaluationView(trip_net=metrics["trip_net"] as float, return_value=metrics["return_value"] as float, empty_return_cost=metrics["empty_return_cost"] as float, home_eta=metrics["home_eta"] as float, deadline_feasible=metrics["deadline_feasible"] as bool, recommendation=metrics["recommendation"] as str, reason=metrics["reason"] as str, cost_km=metrics["cost_km"] as float, trip_cost=metrics["trip_cost"] as float, demand=metrics["demand"] as float, traffic_eta=metrics["traffic_eta"] as float);
+        offer_views.append(OfferView(id=jid(o), region=pickup_region, pickup=o.pickup, dropoff=o.dropoff, fare=o.fare, distance_km=o.distance_km, duration_min=o.duration_min, pickup_km=o.pickup_km, surge=o.surge, status=o.status, evaluation=evaluation));
     }
     decision_views: list[DecisionView] = [DecisionView(offer_id=d.offer_id, decision=d.decision, amount=d.amount, minutes=d.minutes, destination=d.destination) for d in decisions];
     return WorkspaceView(setup=setup_view, zones=zone_views, offers=offer_views, decisions=decision_views, tracked_zone=tracked);
 }
 
-def:pub saveDriverSetup(region: str, goals_text: str, start_zone: str, home_zone: str, shift_hours: float, target_profit: float, deadline: str, preference: str, vehicle_type: str, fuel_efficiency: float, fuel_price: float, ev_efficiency: float, electricity_price: float) -> dict {
+def:protect saveDriverSetup(region: str, goals_text: str, start_zone: str, home_zone: str, shift_hours: float, target_profit: float, deadline: str, preference: str, vehicle_type: str, fuel_efficiency: float, fuel_price: float, ev_efficiency: float, electricity_price: float) -> dict {
     _ensure_workspace();
     if shift_hours <= 0.0 or target_profit < 0.0 or fuel_efficiency <= 0.0 or fuel_price < 0.0 or ev_efficiency <= 0.0 or electricity_price < 0.0 { return {"ok": False, "error": "Enter valid positive shift and efficiency, and non-negative target and energy prices."}; }
     if region != "Sri Lanka" and region != "United Kingdom" and region != "United States" { return {"ok": False, "error": "Choose a supported region."}; }
     setup = [root -->][?:DriverSetup][0];
     settings = _region_settings(region);
+    zones = [root -->][?:Zone];
+    valid_start = False;
+    valid_home = False;
+    for z in zones { if z.name == start_zone and z.region == region { valid_start = True; } if z.name == home_zone and z.region == region { valid_home = True; } }
+    chosen_start = start_zone if valid_start else settings["start"] as str;
+    chosen_home = home_zone if valid_home else chosen_start;
     setup.region = region; setup.currency = settings["currency"] as str; setup.distance_unit = settings["distance_unit"] as str; setup.time_zone = settings["time_zone"] as str;
     setup.goals_text = goals_text;
-    setup.start_zone = start_zone if start_zone != "" else settings["start"] as str;
-    setup.home_zone = home_zone if home_zone != "" else setup.start_zone;
+    setup.start_zone = chosen_start;
+    setup.home_zone = chosen_home;
     setup.shift_hours = shift_hours; setup.target_profit = target_profit; setup.deadline = deadline; setup.preference = "route" if preference == "route" else "profit"; setup.vehicle_type = "ev" if vehicle_type == "ev" else "petrol";
     setup.fuel_efficiency = fuel_efficiency; setup.fuel_price = fuel_price; setup.ev_efficiency = ev_efficiency; setup.electricity_price = electricity_price;
     return {"ok": True};
 }
 
-def:pub decideOffer(offer_id: str, decision: str) -> dict {
+def:protect decideOffer(offer_id: str, decision: str) -> dict {
     _ensure_workspace();
     if decision != "accept" and decision != "decline" { return {"ok": False, "error": "Choose accept or decline."}; }
     setup = [root -->][?:DriverSetup][0];
@@ -182,7 +189,7 @@ def:pub decideOffer(offer_id: str, decision: str) -> dict {
     return {"ok": False, "error": "Offer is no longer available."};
 }
 
-def:pub getShiftComparison() -> ShiftComparisonView {
+def:protect getShiftComparison() -> ShiftComparisonView {
     _ensure_workspace();
     setup = [root -->][?:DriverSetup][0];
     zones = [root -->][?:Zone];
@@ -199,13 +206,28 @@ def:pub getShiftComparison() -> ShiftComparisonView {
         best = remaining[0];
         for row in remaining { if (row["fare"] as float) > (best["fare"] as float) { best = row; } }
         remaining.remove(best);
-        duration = (best["duration_min"] as float) * 1.25; return_mins = (best["distance_km"] as float) * 1.6;
-        if naive_minutes + duration + return_mins <= deadline { naive_minutes += duration; naive_profit += (best["fare"] as float) - ((best["distance_km"] as float) + (best["pickup_km"] as float)) * cost; naive_location = best["dropoff"] as str; naive_taken.append(best["id"] as str); }
+        duration = (best["duration_min"] as float) * 1.25;
+        distance_raw = best["distance_km"] as float;
+        pickup_raw = best["pickup_km"] as float;
+        distance_value = distance_raw * 0.621371 if setup.distance_unit == "miles" else distance_raw;
+        pickup_value = pickup_raw * 0.621371 if setup.distance_unit == "miles" else pickup_raw;
+        return_mins = distance_value * 1.6;
+        if naive_minutes + duration + return_mins <= deadline { naive_minutes += duration; naive_profit += (best["fare"] as float) - (distance_value + pickup_value) * cost; naive_location = best["dropoff"] as str; naive_taken.append(best["id"] as str); }
     }
     agent_profit = 0.0; agent_minutes = 0.0; agent_location = setup.start_zone; agent_taken: list[str] = [];
     for row in records {
         metrics = _offer_metrics(row, setup, zones);
-        if (metrics["recommendation"] as str) == "ACCEPT" and agent_minutes + (metrics["traffic_eta"] as float) + (row["distance_km"] as float) * 1.6 <= deadline { agent_profit += metrics["trip_net"] as float; agent_minutes += metrics["traffic_eta"] as float; agent_location = row["dropoff"] as str; agent_taken.append(row["id"] as str); }
+        row_distance_raw = row["distance_km"] as float;
+        row_distance = row_distance_raw * 0.621371 if setup.distance_unit == "miles" else row_distance_raw;
+        if (metrics["recommendation"] as str) == "ACCEPT" and agent_minutes + (metrics["traffic_eta"] as float) + row_distance * 1.6 <= deadline { agent_profit += metrics["trip_net"] as float; agent_minutes += metrics["traffic_eta"] as float; agent_location = row["dropoff"] as str; agent_taken.append(row["id"] as str); }
     }
-    return ShiftComparisonView(naive_profit=naive_profit, naive_minutes=naive_minutes, naive_home_eta=naive_minutes + 32.0, naive_location=naive_location, naive_taken=naive_taken, agent_profit=agent_profit, agent_minutes=agent_minutes, agent_home_eta=agent_minutes + 32.0, agent_location=agent_location, agent_taken=agent_taken, deadline_minutes=deadline);
+    naive_home_distance = 20.0;
+    agent_home_distance = 20.0;
+    for road in [root -->][?:RoadLink] {
+        if road.origin == naive_location and road.destination == setup.home_zone { naive_home_distance = road.distance_km; }
+        elif road.destination == naive_location and road.origin == setup.home_zone { naive_home_distance = road.distance_km; }
+        if road.origin == agent_location and road.destination == setup.home_zone { agent_home_distance = road.distance_km; }
+        elif road.destination == agent_location and road.origin == setup.home_zone { agent_home_distance = road.distance_km; }
+    }
+    return ShiftComparisonView(naive_profit=naive_profit, naive_minutes=naive_minutes, naive_home_eta=naive_minutes + naive_home_distance * 1.6, naive_location=naive_location, naive_taken=naive_taken, agent_profit=agent_profit, agent_minutes=agent_minutes, agent_home_eta=agent_minutes + agent_home_distance * 1.6, agent_location=agent_location, agent_taken=agent_taken, deadline_minutes=deadline);
 }
