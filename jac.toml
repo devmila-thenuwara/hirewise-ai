@@ -49,6 +49,8 @@ react-resizable-panels = "4.12.4"
 recharts = "3.10.1"
 sonner = "2.0.8"
 vaul = "1.1.2"
+"@tomtom-international/web-sdk-maps" = "latest"
+"@tomtom-international/web-sdk-services" = "latest"
 
 [dependencies.npm.dev]
 vite = "^6.4.1"
@@ -71,6 +73,9 @@ base_route_app = "app"
 [client.vite]
 plugins = ["tailwindcss()"]
 lib_imports = ["import tailwindcss from '@tailwindcss/vite'"]
+
+[client.vite.define]
+"globalThis.__TOMTOM_API_KEY__" = "\"${TOMTOM_API_KEY:-}\""
 
 [client.app_meta_data]
 title = "A blank canvas"
