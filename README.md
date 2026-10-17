@@ -1,16 +1,25 @@
 # HireWise
 
-HireWise is a Jac driver decision workspace for Sri Lanka. The map, district positions, regional routes, demand, traffic, offers, fares, and driver movement are all simulated and clearly labelled. The app uses an interactive SVG island diagram, not Google Maps, GPS, or live traffic/provider services.
+HireWise is a Jac driver decision workspace. Phase 1 includes driver accounts and simulated offers across Sri Lanka, the UK and the USA. **All ride offers, fares, demand, route distances, traffic multipliers, and displayed driver position are simulated.** The map is an in-app schematic, not a live map.
 
-## Jac and Jaseci features
+## Accounts and privacy
 
-- **Graph nodes:** `Zone`, `RoadLink`, `DriverSetup`, `SimOffer`, and `DecisionRecord` model the simulated nationwide district network, road links, trips, setup, and driver activity.
-- **Graph initialization:** the service idempotently adds simulated districts across Sri Lanka and their route links, including when an existing graph already contains the original city-area zones.
-- **by llm:** `parseGoals` structures shift-goal text and `getOfferExplanation` explains deterministic evaluations using `gemini/gemini-3.8-flash`. Add `GEMINI_API_KEY` in JacHammer Settings. No key is in source.
-- **Deterministic calculations:** petrol/EV energy cost per km, trip net, return potential, empty-return cost, deadline feasibility, and full-shift comparisons run in Jac code, not through the LLM.
-- **Jac client:** select district points in the SVG map or district buttons, inspect the simulated region/demand, review offer alternatives, and see the simulated marker at the current position. Accepting an offer updates the tracker to its destination.
-- **Authentication:** not included in Phase 1.
+- Drivers register with email, phone and a password they choose. Passwords are handled by Jac's built-in authentication; HireWise does not store passwords in its graph.
+- Driver profile and shift data are stored on the authenticated user's isolated Jac graph.
+- The admin account is provisioned separately; admin analytics is a later phase.
 
-## Simulation notice
+## Regions
 
-District placement is schematic and not geospatially precise. Routes, road lengths, traffic multipliers, demand scores, sample offers, energy prices, and tracker movement are illustrative. Do not use as real navigation, fare guidance, traffic prediction, or safety advice. The driver makes the final choice. No live maps, GPS, external provider, or real-time prediction feed is integrated.
+Region selector: Sri Lanka (LKR/km), United Kingdom (GBP/miles), United States (USD/miles). Offers, zones, illustrative energy prices, time-zone labels and maps are regional simulations. No live geolocation or tracking is enabled in Phase 1.
+
+## AI
+
+Goal parsing and concise offer explanations use Jac `by llm` with `gemini/gemini-3.8-flash`. Add `GEMINI_API_KEY` through JacHammer Settings. Deterministic Jac code calculates vehicle energy cost, offer net, return-ride potential, deadline feasibility and shift comparison. AI does not calculate recommendations.
+
+## Later approved phases
+
+TomTom Maps SDK, live traffic-aware routes and opt-in location tracking are later work; use `TOMTOM_API_KEY` in JacHammer Settings when that phase begins. Traffic-history uploads or a prediction API, admin analytics, and a driver-help chatbot also remain later phases. Prediction accuracy will not be claimed until its data source is supplied and validated.
+
+## Model assumptions
+
+All fares, offers, energy prices, demand and route samples are illustrative, not real market facts. Drivers make final accept/decline decisions. The naive comparison chooses highest fare first and skips only if projected return home misses the configured deadline. HireWise does not recommend declining solely due to traffic or encourage cancelling accepted rides.
